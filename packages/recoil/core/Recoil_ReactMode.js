@@ -32,16 +32,24 @@ let ReactRendererVersionMismatchWarnOnce = false;
 // Since React goes through a proxy dispatcher and the current renderer can
 // change we can't simply check if `React.useSyncExternalStore()` is defined.
 function currentRendererSupportsUseSyncExternalStore(): boolean {
-  // $FlowFixMe[incompatible-use]
-  const {ReactCurrentDispatcher, ReactCurrentOwner} =
-    /* $FlowFixMe[prop-missing] This workaround was approved as a safer mechanism
-     * to detect if the current renderer supports useSyncExternalStore()
-     * https://fb.workplace.com/groups/reactjs/posts/9558682330846963/ */
+  // React 19 removed __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.
+  // When the internals are absent, useSyncExternalStore is always available.
+  const internals =
+    /* $FlowFixMe[prop-missing] */
     React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+  if (internals == null) {
+    return useSyncExternalStore != null;
+  }
+
+  // React 18 path: inspect the current dispatcher to handle edge cases with
+  // mixed renderers (e.g. react-three-fiber) that may not support the hook.
+  // $FlowFixMe[incompatible-use]
+  const {ReactCurrentDispatcher, ReactCurrentOwner} = internals;
   const dispatcher =
-    ReactCurrentDispatcher?.current ?? ReactCurrentOwner.currentDispatcher;
+    ReactCurrentDispatcher?.current ?? ReactCurrentOwner?.currentDispatcher;
   const isUseSyncExternalStoreSupported =
-    dispatcher.useSyncExternalStore != null;
+    dispatcher?.useSyncExternalStore != null;
   if (
     useSyncExternalStore &&
     !isUseSyncExternalStoreSupported &&

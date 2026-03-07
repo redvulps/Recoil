@@ -44,9 +44,14 @@ export type {
 
 const {RecoilLoadable} = require('./adt/Recoil_Loadable');
 const {DefaultValue} = require('./core/Recoil_Node');
-const {RecoilRoot, useRecoilStoreID} = require('./core/Recoil_RecoilRoot');
+const {
+  RecoilRoot,
+  RecoilRoot_INTERNAL,
+  useRecoilStoreID,
+} = require('./core/Recoil_RecoilRoot');
 const {isRecoilValue} = require('./core/Recoil_RecoilValue');
 const {retentionZone} = require('./core/Recoil_RetentionZone');
+const RecoilNodeInternal = require('./core/Recoil_Node');
 const {freshSnapshot} = require('./core/Recoil_Snapshot');
 const {
   useRecoilState,
@@ -144,4 +149,8 @@ module.exports = {
   // Memory Management
   useRetain,
   retentionZone,
+
+  // Internal APIs (advanced usage)
+  RecoilRootInternal: RecoilRoot_INTERNAL,
+  RecoilNodeInternal,
 };

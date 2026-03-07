@@ -12,6 +12,10 @@
  * @oncall recoil
  */
 
-const {unstable_batchedUpdates} = require('ReactDOMLegacy_DEPRECATED');
+// React 19 removed unstable_batchedUpdates — all updates are batched by default.
+// Fall back to a direct invocation when the API is absent.
+const ReactDOM = require('ReactDOMLegacy_DEPRECATED');
+const unstable_batchedUpdates =
+  ReactDOM.unstable_batchedUpdates || (callback => callback());
 
 module.exports = {unstable_batchedUpdates};

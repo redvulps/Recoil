@@ -16,7 +16,7 @@ import type {RecoilState, RecoilValue, RecoilValueReadOnly} from 'Recoil';
 
 // @fb-only: const ReactDOMComet = require('ReactDOMComet');
 // @fb-only: const ReactDOM = require('ReactDOMLegacy_DEPRECATED');
-const {act} = require('ReactTestUtils');
+const {act} = require('react');
 const {
   RecoilRoot,
   atom,
@@ -49,6 +49,7 @@ const {useEffect} = require('react');
 const err = require('recoil-shared/util/Recoil_err');
 
 const ReactDOM = require('react-dom'); // @oss-only
+const ReactDOMClient = require('react-dom/client'); // @oss-only
 const StrictMode = React.StrictMode; // @oss-only
 
 const QUICK_TEST = false;
@@ -128,13 +129,15 @@ function renderLegacyReactRoot<Props>(
   container: HTMLElement,
   contents: ReactAbstractElement<Props>,
 ) {
-  ReactDOM.render(contents, container); // @oss-only
-  // @fb-only: ReactDOM.render(contents, container, 'Recoil_TestingUtils.js');
+  // Legacy ReactDOM.render was removed in React 19.
+  // Use createRoot for all versions since we require React 18+.
+  const root = ReactDOMClient.createRoot(container);
+  root.render(contents);
 }
 
 // @fb-only: const createRoot = ReactDOMComet.createRoot;
-// $FlowFixMe[prop-missing] unstable_createRoot is not part of react-dom typing // @oss-only
-const createRoot = ReactDOM.createRoot ?? ReactDOM.unstable_createRoot; // @oss-only
+// React 18+ always has createRoot via react-dom/client // @oss-only
+const createRoot = ReactDOMClient.createRoot; // @oss-only
 
 function isConcurrentModeAvailable(): boolean {
   return createRoot != null;
@@ -150,7 +153,6 @@ function renderConcurrentReactRoot<Props>(
       'Concurrent rendering is not available with the current version of React.',
     );
   }
-  // $FlowFixMe[not-a-function] unstable_createRoot is not part of react-dom typing // @oss-only
   createRoot(container).render(contents);
 }
 

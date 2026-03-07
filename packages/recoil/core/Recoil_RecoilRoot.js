@@ -368,12 +368,12 @@ function RecoilRoot_INTERNAL({
 }: InternalProps): React.Node {
   // prettier-ignore
   // @fb-only: useEffect(() => {
-    // @fb-only: if (gkx('recoil_usage_logging')) {
-      // @fb-only: RecoilUsageLogFalcoEvent.log(() => ({
-        // @fb-only: type: RecoilusagelogEvent.RECOIL_ROOT_MOUNTED,
-        // @fb-only: path: URI.getRequestURI().getPath(),
-      // @fb-only: }));
-    // @fb-only: }
+  // @fb-only: if (gkx('recoil_usage_logging')) {
+  // @fb-only: RecoilUsageLogFalcoEvent.log(() => ({
+  // @fb-only: type: RecoilusagelogEvent.RECOIL_ROOT_MOUNTED,
+  // @fb-only: path: URI.getRequestURI().getPath(),
+  // @fb-only: }));
+  // @fb-only: }
   // @fb-only: }, []);
 
   let storeStateRef: {current: StoreState}; // eslint-disable-line prefer-const
@@ -568,6 +568,7 @@ function useRecoilStoreID(): StoreID {
 
 module.exports = {
   RecoilRoot,
+  RecoilRoot_INTERNAL,
   useStoreRef,
   useRecoilStoreID,
   notifyComponents_FOR_TESTING: notifyComponents,
