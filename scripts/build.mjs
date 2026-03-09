@@ -73,8 +73,8 @@ async function buildAll() {
   console.log('Building all packages...\n');
   await Promise.all(
     Object.entries(PACKAGES).map(([target, config]) =>
-      buildPackage(target, config)
-    )
+      buildPackage(target, config),
+    ),
   );
 }
 
@@ -85,11 +85,11 @@ async function buildPackage(target, config) {
       buildRollup(
         `recoil (${buildType})`,
         createInputOption(buildType, target, config.inputFile),
-        packageTypes.map((type) =>
-          createOutputOption(type, target, config.umdName)
-        )
-      )
-    )
+        packageTypes.map(type =>
+          createOutputOption(type, target, config.umdName),
+        ),
+      ),
+    ),
   );
 
   console.log('Copying files...');
@@ -150,7 +150,7 @@ async function buildRollup(name, inputOptions, outputOptionsList) {
     const bundle = await rollup(inputOptions);
 
     await Promise.all(
-      outputOptionsList.map((outputOptions) => bundle.write(outputOptions))
+      outputOptionsList.map(outputOptions => bundle.write(outputOptions)),
     );
   } catch (error) {
     createErrorHandler(`Build for package ${name} failed!`)(error);

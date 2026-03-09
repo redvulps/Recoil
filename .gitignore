@@ -76,11 +76,12 @@ typings/
 .cache
 
 # build outputs
-build
-cjs
-es
-native
-umd
+build/*
+!build/recoil/
+/cjs
+/es
+/native
+/umd
 /index.d.ts
 nightly-build-files
 

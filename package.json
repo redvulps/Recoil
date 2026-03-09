@@ -1,18 +1,14 @@
 {
   "name": "recoil",
   "version": "0.8.0",
-  "private": true,
   "description": "Recoil - A state management library for React",
-  "main": "cjs/index.js",
-  "module": "es/index.js",
-  "react-native": "native/index.js",
-  "unpkg": "umd/index.js",
+  "main": "build/recoil/cjs/index.js",
+  "module": "build/recoil/es/index.js",
+  "react-native": "build/recoil/native/index.js",
+  "unpkg": "build/recoil/umd/index.js",
+  "types": "build/recoil/index.d.ts",
   "files": [
-    "umd",
-    "es",
-    "cjs",
-    "native",
-    "index.d.ts"
+    "build/recoil"
   ],
   "repository": "https://github.com/facebookexperimental/Recoil.git",
   "license": "MIT",

@@ -96,11 +96,12 @@ const productionPlugins = [
 
 const nativePlugins = commonPlugins.map(plugin =>
   // Replace the default nodeResolvePlugin
-  plugin !== nodeResolvePlugin ? plugin :
-    nodeResolve({
-      ...defaultNodeResolveConfig,
-      extensions: ['.native.js', '.js'],
-    })
+  plugin !== nodeResolvePlugin
+    ? plugin
+    : nodeResolve({
+        ...defaultNodeResolveConfig,
+        extensions: ['.native.js', '.js'],
+      }),
 );
 
 export function createInputOption(buildType, folder, inputFile) {
@@ -116,19 +117,19 @@ export function createInputOption(buildType, folder, inputFile) {
         input: `packages/${folder}/${inputFile}`,
         external: externalLibs,
         plugins: developmentPlugins,
-        };
+      };
     case 'prod':
       return {
         input: `packages/${folder}/${inputFile}`,
         external: externalLibs,
         plugins: productionPlugins,
-        };
+      };
     case 'native':
       return {
         input: `packages/${folder}/${inputFile}`,
         external: externalLibs,
         plugins: nativePlugins,
-        };
+      };
     default:
       throw new Error(`Unknown input type: ${buildType}`);
   }
