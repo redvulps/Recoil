@@ -236,8 +236,8 @@ describe('Retention of and via selectors', () => {
     },
   );
 
-  const flushPromises = async () =>
-    await act(() => new Promise(window.setImmediate));
+  // Flush microtasks (promise resolutions) without advancing fake timers
+  const flushPromises = async () => await act(async () => {});
 
   testRecoil(
     'An async selector is not released when its only subscribed component suspends',

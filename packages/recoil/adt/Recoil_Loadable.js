@@ -214,6 +214,9 @@ function loadableWithError<+T>(error: mixed): $ReadOnly<ErrorLoadable<T>> {
 function loadableWithPromise<+T>(
   promise: Promise<T>,
 ): $ReadOnly<LoadingLoadable<T>> {
+  // Mark rejections as handled while the promise is still being tracked by a
+  // Loadable so native Promise environments do not report false unhandled errors.
+  promise.catch(() => {});
   return Object.freeze(new LoadingLoadable(promise));
 }
 

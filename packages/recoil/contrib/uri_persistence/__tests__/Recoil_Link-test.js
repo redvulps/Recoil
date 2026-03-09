@@ -11,7 +11,7 @@
 'use strict';
 import type {MutableSnapshot, Snapshot} from 'Recoil_Snapshot';
 
-const {Simulate, act} = require('ReactTestUtils');
+const {act} = require('ReactTestUtils');
 
 const {freshSnapshot} = require('../../../core/Recoil_Snapshot');
 const atom = require('../../../recoil_values/Recoil_atom');
@@ -88,7 +88,10 @@ test('Link - snapshot', async () => {
   );
 
   act(() => {
-    Simulate.click(c.children[0], {button: 0});
+    // React 19 removed Simulate. Use dispatchEvent with a native MouseEvent instead.
+    c.children[0].dispatchEvent(
+      new MouseEvent('click', {button: 0, bubbles: true, cancelable: true}),
+    );
   });
   await flushPromisesAndTimers();
   expect(c.textContent).toEqual('"MAP"LINK-MAP');
@@ -114,7 +117,10 @@ test('Link - stateChange', async () => {
   );
 
   act(() => {
-    Simulate.click(c.children[0], {button: 0});
+    // React 19 removed Simulate. Use dispatchEvent with a native MouseEvent instead.
+    c.children[0].dispatchEvent(
+      new MouseEvent('click', {button: 0, bubbles: true, cancelable: true}),
+    );
   });
   await flushPromisesAndTimers();
   expect(c.textContent).toEqual('"MAP"LINK');
@@ -141,7 +147,10 @@ test('Link - state update', async () => {
   );
 
   act(() => {
-    Simulate.click(c.children[0], {button: 0});
+    // React 19 removed Simulate. Use dispatchEvent with a native MouseEvent instead.
+    c.children[0].dispatchEvent(
+      new MouseEvent('click', {button: 0, bubbles: true, cancelable: true}),
+    );
   });
   await flushPromisesAndTimers();
   expect(c.textContent).toEqual('"MAP SET"LINK');

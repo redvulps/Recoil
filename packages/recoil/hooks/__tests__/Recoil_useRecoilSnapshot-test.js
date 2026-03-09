@@ -170,10 +170,10 @@ testRecoil(
     }
 
     renderElements(<RecoilSnapshotAndSubscribe />);
-    expect(snapshots.length).toEqual(strictMode && concurrentMode ? 2 : 1);
+    expect(snapshots.length).toEqual(strictMode ? 2 : 1);
 
     act(() => resolve('RESOLVE'));
-    expect(snapshots.length).toEqual(strictMode && concurrentMode ? 2 : 1);
+    expect(snapshots.length).toEqual(strictMode ? 2 : 1);
 
     // On the first request the selector is unresolved and returns the promise
     await expect(
@@ -210,14 +210,14 @@ testRecoil(
     );
 
     expect(c.textContent).toEqual('loading');
-    expect(snapshots.length).toEqual(strictMode && concurrentMode ? 2 : 1);
+    expect(snapshots.length).toEqual(strictMode ? 2 : 1);
 
     act(() => resolve('RESOLVE'));
     await flushPromisesAndTimers();
     await flushPromisesAndTimers();
     expect(c.textContent).toEqual('"RESOLVE"');
 
-    expect(snapshots.length).toEqual(strictMode && concurrentMode ? 3 : 2);
+    expect(snapshots.length).toEqual(strictMode ? 3 : 2);
     // Snapshot contains cached result since it was cloned after resolved
     expect(snapshots[0].getLoadable(mySelector).contents).toEqual('RESOLVE');
   },

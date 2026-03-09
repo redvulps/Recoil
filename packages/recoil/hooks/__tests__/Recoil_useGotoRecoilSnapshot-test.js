@@ -231,7 +231,8 @@ testRecoil('Goto snapshot with async selector', async () => {
 testRecoil(
   'Effects going to previous snapshot',
   ({strictMode, concurrentMode}) => {
-    const sm = strictMode && concurrentMode ? 2 : 1;
+    // React 19 StrictMode double-invokes effects regardless of concurrent mode.
+    const sm = strictMode ? 2 : 1;
 
     let init = 0;
     const myAtom = atom({

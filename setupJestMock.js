@@ -8,6 +8,12 @@
  * @oncall recoil
  */
 
-const Promise = require('promise-polyfill');
+if (typeof global.Promise !== 'function') {
+  // Native Promise integrates correctly with modern fake timers and React act().
+  global.Promise = require('promise-polyfill');
+}
 
-global.Promise = Promise;
+// React 18+ requires IS_REACT_ACT_ENVIRONMENT = true for act() to work
+// correctly in test environments. Without this, async state updates inside
+// act() may not be flushed, causing flaky test failures.
+global.IS_REACT_ACT_ENVIRONMENT = true;

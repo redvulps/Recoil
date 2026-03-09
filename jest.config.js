@@ -10,7 +10,11 @@
  */
 
 module.exports = {
-  timers: 'fake',
+  fakeTimers: {
+    enableGlobally: true,
+    doNotFake: ['Date'],
+  },
+  testEnvironment: 'jsdom',
   globals: {
     __DEV__: true,
   },

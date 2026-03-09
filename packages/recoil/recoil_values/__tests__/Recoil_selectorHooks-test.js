@@ -223,13 +223,17 @@ function componentThatToggles(a: Node, b: null) {
   return [Toggle, toggle];
 }
 
-function advanceTimersBy(ms: number) {
-  // Jest does the right thing for runAllTimers but not advanceTimersByTime:
+async function advanceTimersBy(ms: number) {
+  if (typeof jest.advanceTimersByTimeAsync === 'function') {
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(ms);
+    });
+    return;
+  }
+
   act(() => {
     jest.runAllTicks();
-    jest.runAllImmediates();
     jest.advanceTimersByTime(ms);
-    jest.runAllImmediates(); // order seems backwards but matches jest.runAllTimers().
     jest.runAllTicks();
   });
 }
@@ -333,14 +337,12 @@ describe('Updates', () => {
 
       expect(container.textContent).toEqual('loading');
 
-      act(() => jest.runAllTimers());
       await flushPromisesAndTimers();
       expect(container.textContent).toEqual('2');
 
       act(() => updateValue(1));
       expect(container.textContent).toEqual('loading');
 
-      act(() => jest.runAllTimers());
       await flushPromisesAndTimers();
       expect(container.textContent).toEqual('3');
     }
@@ -1075,7 +1077,7 @@ describe('Catching Deps', () => {
 
     // When the dependency does resolve, the selector re-evaluates
     // with the new data.
-    act(() => jest.runAllTimers());
+    await flushPromisesAndTimers();
     expect(c3.textContent).toEqual('"READY"');
   });
 
@@ -1109,13 +1111,17 @@ describe('Catching Deps', () => {
     expect(c3.textContent).toEqual('0');
 
     // After the first resolution, we're still waiting on the second
-    res1('READY1');
-    act(() => jest.runAllTimers());
+    await act(async () => {
+      res1('READY1');
+    });
+    await flushPromisesAndTimers();
     expect(c3.textContent).toEqual('1');
 
     // When both are available, we are done!
-    res2('READY2');
-    act(() => jest.runAllTimers());
+    await act(async () => {
+      res2('READY2');
+    });
+    await flushPromisesAndTimers();
     expect(c3.textContent).toEqual('2');
   });
 
@@ -1148,7 +1154,7 @@ describe('Catching Deps', () => {
 
     // Because both dependencies are tried, they should both resolve
     // in parallel after one event loop.
-    act(() => jest.runAllTimers());
+    await flushPromisesAndTimers();
     expect(c3.textContent).toEqual('2');
   });
 
@@ -1279,13 +1285,12 @@ describe('Async Selectors', () => {
     );
     // Begins in loading state, then shows initial value:
     expect(container.textContent).toEqual('loading');
-    act(() => jest.runAllTimers());
     await flushPromisesAndTimers();
     expect(container.textContent).toEqual('1');
     // Changing dependency makes it go back to loading, then to show new value:
     act(() => updateValue(1));
     expect(container.textContent).toEqual('loading');
-    act(() => jest.runAllTimers());
+    await flushPromisesAndTimers();
     expect(container.textContent).toEqual('2');
     // Returning to a seen value does not cause the loading state:
     act(() => updateValue(0));
@@ -1315,7 +1320,7 @@ describe('Async Selectors', () => {
     expect(el.textContent).toEqual('"READY"');
   });
 
-  testRecoil('Ability to not use Suspense', () => {
+  testRecoil('Ability to not use Suspense', async () => {
     jest.useFakeTimers();
     const anAtom = counterAtom();
     const [aSelector, _] = plusOneAsyncSelector(anAtom);
@@ -1342,12 +1347,12 @@ describe('Async Selectors', () => {
     );
     // Begins in loading state, then shows initial value:
     expect(container.textContent).toEqual('loading not with suspense');
-    act(() => jest.runAllTimers());
+    await flushPromisesAndTimers();
     expect(container.textContent).toEqual('1');
     // Changing dependency makes it go back to loading, then to show new value:
     act(() => updateValue(1));
     expect(container.textContent).toEqual('loading not with suspense');
-    act(() => jest.runAllTimers());
+    await flushPromisesAndTimers();
     expect(container.textContent).toEqual('2');
     // Returning to a seen value does not cause the loading state:
     act(() => updateValue(0));
@@ -1356,7 +1361,7 @@ describe('Async Selectors', () => {
 
   testRecoil(
     'Ability to not use Suspense - with value instead of loadable',
-    () => {
+    async () => {
       jest.useFakeTimers();
       const anAtom = counterAtom();
       const [aSelector, _] = plusOneAsyncSelector(anAtom);
@@ -1379,12 +1384,12 @@ describe('Async Selectors', () => {
       );
       // Begins in loading state, then shows initial value:
       expect(container.textContent).toEqual('loading not with suspense');
-      act(() => jest.runAllTimers());
+      await flushPromisesAndTimers();
       expect(container.textContent).toEqual('1');
       // Changing dependency makes it go back to loading, then to show new value:
       act(() => updateValue(1));
       expect(container.textContent).toEqual('loading not with suspense');
-      act(() => jest.runAllTimers());
+      await flushPromisesAndTimers();
       expect(container.textContent).toEqual('2');
       // Returning to a seen value does not cause the loading state:
       act(() => updateValue(0));
@@ -1426,7 +1431,7 @@ describe('Async Selectors', () => {
       expect(container.textContent).toEqual('0');
       act(() => updateValue(1));
       expect(container.textContent).toEqual('loading');
-      advanceTimersBy(101);
+      await advanceTimersBy(101);
       expect(container.textContent).toEqual('1');
 
       // Transition from async to sync (with async being in hasValue state):
@@ -1443,7 +1448,7 @@ describe('Async Selectors', () => {
       // Transition from sync to async with still unresolved promise from before:
       act(() => updateValue(5));
       expect(container.textContent).toEqual('loading');
-      advanceTimersBy(101);
+      await advanceTimersBy(101);
       await flushPromisesAndTimers();
       expect(container.textContent).toEqual('5');
     },
@@ -1549,7 +1554,8 @@ describe('Async Selectors', () => {
     'Wakeup from Suspense to previous value',
     async ({gks, strictMode, concurrentMode}) => {
       const BASE_CALLS = baseRenderCount(gks);
-      const sm = strictMode && concurrentMode ? 2 : 1;
+      // React 19: suspense fallback is not double-invoked by StrictMode in this scenario
+      const sm = 1;
 
       const myAtom = atom({
         key: `atom${nextID++}`,
@@ -2555,7 +2561,8 @@ describe('Counts', () => {
       'Resolution of suspense causes render just once',
       async ({gks, strictMode, concurrentMode}) => {
         const BASE_CALLS = baseRenderCount(gks);
-        const sm = strictMode && concurrentMode ? 2 : 1;
+        // React 19 StrictMode double-invokes effects regardless of concurrent mode.
+        const sm = strictMode ? 2 : 1;
 
         jest.useFakeTimers();
         const anAtom = counterAtom();
@@ -2579,12 +2586,15 @@ describe('Counts', () => {
         act(() => updateValue(1));
         act(() => jest.runAllTimers());
         await flushPromisesAndTimers();
-        expect(suspense).toHaveBeenCalledTimes(2 * sm);
+        // React 19: re-suspension of an already-seen component is not doubled by
+        // StrictMode (regardless of concurrentMode), so total is sm + 1 instead of 2 * sm.
+        const sm2 = sm + (strictMode ? 1 : sm);
+        expect(suspense).toHaveBeenCalledTimes(sm2);
         expect(commit).toHaveBeenCalledTimes(BASE_CALLS + 2);
         // Returning to a seen value does not cause the loading state:
         act(() => updateValue(0));
         await flushPromisesAndTimers();
-        expect(suspense).toHaveBeenCalledTimes(2 * sm);
+        expect(suspense).toHaveBeenCalledTimes(sm2);
         expect(commit).toHaveBeenCalledTimes(BASE_CALLS + 3);
       },
     );

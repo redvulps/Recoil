@@ -235,10 +235,10 @@ testRecoil('useRecoilValue()', async ({concurrentMode}) => {
 
   // Transition changing React State
   act(startReactTransition);
+  // React 19 always uses concurrent reconciliation, so transitions always
+  // show [IN TRANSITION] (not LOADING) regardless of the test's concurrentMode flag.
   expect(c.textContent).toBe(
-    concurrentMode
-      ? 'React:0 Recoil:0 [IN TRANSITION] | 0 0 0 RESOLVED'
-      : 'React:1 Recoil:0 | LOADING',
+    'React:0 Recoil:0 [IN TRANSITION] | 0 0 0 RESOLVED',
   );
   act(resolveSelectors);
   await flushPromisesAndTimers();
@@ -247,7 +247,7 @@ testRecoil('useRecoilValue()', async ({concurrentMode}) => {
   // Transition changing Recoil State
   act(startRecoilTransition);
   expect(c.textContent).toBe(
-    concurrentMode && reactMode().concurrent
+    reactMode().concurrent
       ? 'React:1 Recoil:0 [IN TRANSITION] | 1 1 0 RESOLVED'
       : 'React:1 Recoil:1 | LOADING',
   );
@@ -258,7 +258,7 @@ testRecoil('useRecoilValue()', async ({concurrentMode}) => {
   // Second transition changing Recoil State
   act(startRecoilTransition);
   expect(c.textContent).toBe(
-    concurrentMode && reactMode().concurrent
+    reactMode().concurrent
       ? 'React:1 Recoil:1 [IN TRANSITION] | 1 1 1 RESOLVED'
       : 'React:1 Recoil:2 | LOADING',
   );
@@ -269,7 +269,7 @@ testRecoil('useRecoilValue()', async ({concurrentMode}) => {
   // Transition with both React and Recoil state
   act(startBothTransition);
   expect(c.textContent).toBe(
-    concurrentMode && reactMode().concurrent
+    reactMode().concurrent
       ? 'React:1 Recoil:2 [IN TRANSITION] | 1 1 2 RESOLVED'
       : 'React:2 Recoil:3 | LOADING',
   );
@@ -359,10 +359,9 @@ testRecoil(
 
     // Transition changing React State
     act(startReactTransition);
+    // React 19 always uses concurrent reconciliation for transitions.
     expect(c.textContent).toBe(
-      concurrentMode
-        ? 'React:0 Recoil:0 [IN TRANSITION] | 0 0 0 RESOLVED'
-        : 'React:1 Recoil:0 | LOADING',
+      'React:0 Recoil:0 [IN TRANSITION] | 0 0 0 RESOLVED',
     );
     act(resolveSelectors);
     await flushPromisesAndTimers();
@@ -371,7 +370,7 @@ testRecoil(
     // Transition changing Recoil State
     act(startRecoilTransition);
     expect(c.textContent).toBe(
-      concurrentMode && reactMode().early
+      reactMode().early
         ? 'React:1 Recoil:0 [IN TRANSITION] | 1 1 0 RESOLVED'
         : 'React:1 Recoil:1 | LOADING',
     );
@@ -382,7 +381,7 @@ testRecoil(
     // Second transition changing Recoil State
     act(startRecoilTransition);
     expect(c.textContent).toBe(
-      concurrentMode && reactMode().early
+      reactMode().early
         ? 'React:1 Recoil:1 [IN TRANSITION] | 1 1 1 RESOLVED'
         : 'React:1 Recoil:2 | LOADING',
     );
@@ -391,11 +390,11 @@ testRecoil(
     expect(c.textContent).toBe('React:1 Recoil:2 | 1 1 2 RESOLVED');
 
     // Transition with both React and Recoil State
+    // React 19 always uses concurrent reconciliation, so transitions always show
+    // [IN TRANSITION] regardless of the test's concurrentMode flag.
     act(startBothTransition);
     expect(c.textContent).toBe(
-      concurrentMode
-        ? 'React:1 Recoil:2 [IN TRANSITION] | 1 1 2 RESOLVED'
-        : 'React:2 Recoil:3 | LOADING',
+      'React:1 Recoil:2 [IN TRANSITION] | 1 1 2 RESOLVED',
     );
     act(resolveSelectors);
     await flushPromisesAndTimers();

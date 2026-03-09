@@ -65,13 +65,13 @@ const testRecoil = getRecoilTestFn(() => {
 
 testRecoil('Reads Recoil values', async () => {
   const anAtom = atom({key: 'atom1', default: 'DEFAULT'});
-  let pTest: ?Promise<mixed> = Promise.reject(
-    new Error("Callback didn't resolve"),
-  );
+  let didRun = false;
+  let pTest: ?Promise<mixed>;
   let cb;
 
   function Component() {
     cb = useRecoilCallback(({snapshot}) => () => {
+      didRun = true;
       // eslint-disable-next-line jest/valid-expect
       pTest = expect(snapshot.getPromise(anAtom)).resolves.toBe('DEFAULT');
     });
@@ -79,6 +79,8 @@ testRecoil('Reads Recoil values', async () => {
   }
   renderElements(<Component />);
   act(() => void cb());
+  await flushPromisesAndTimers();
+  expect(didRun).toBe(true);
   await pTest;
 });
 
@@ -114,13 +116,13 @@ testRecoil('Can read Recoil values without throwing', async () => {
 testRecoil('Sets Recoil values (by queueing them)', async () => {
   const anAtom = atom({key: 'atom3', default: 'DEFAULT'});
   let cb;
-  let pTest: ?Promise<mixed> = Promise.reject(
-    new Error("Callback didn't resolve"),
-  );
+  let didRun = false;
+  let pTest: ?Promise<mixed>;
 
   function Component() {
     // $FlowFixMe[missing-local-annot]
     cb = useRecoilCallback(({snapshot, set}) => value => {
+      didRun = true;
       set(anAtom, value);
       // eslint-disable-next-line jest/valid-expect
       pTest = expect(snapshot.getPromise(anAtom)).resolves.toBe('DEFAULT');
@@ -137,6 +139,7 @@ testRecoil('Sets Recoil values (by queueing them)', async () => {
   expect(container.textContent).toBe('"DEFAULT"');
   act(() => void cb(123));
   expect(container.textContent).toBe('123');
+  expect(didRun).toBe(true);
   await pTest;
 });
 
@@ -412,7 +415,7 @@ testRecoil('Updates are batched', () => {
 
 // Test that we always get a consistent instance of the callback function
 // from useRecoilCallback() when it is memoizaed
-testRecoil('Consistent callback function', () => {
+testRecoil('Consistent callback function', ({strictMode}) => {
   let setIteration;
   const Component = () => {
     const [iteration, _setIteration] = useState(0);
@@ -420,9 +423,14 @@ testRecoil('Consistent callback function', () => {
 
     const callback = useRecoilCallback(() => () => {});
     const callbackRef = useRef(callback);
-    iteration
-      ? expect(callback).not.toBe(callbackRef.current)
-      : expect(callback).toBe(callbackRef.current);
+    // React 19 StrictMode double-renders the component, which makes the ref
+    // stale on the second render of the same iteration. Skip this check in
+    // StrictMode where the ref comparison is unreliable at iteration=0.
+    if (iteration > 0) {
+      expect(callback).not.toBe(callbackRef.current);
+    } else if (!strictMode) {
+      expect(callback).toBe(callbackRef.current);
+    }
 
     const callbackMemoized = useRecoilCallback(() => () => {}, []);
     const callbackMemoizedRef = useRef(callbackMemoized);
@@ -473,7 +481,7 @@ describe('Atom Effects', () => {
 
       const c = renderElements(<Component />);
       expect(c.textContent).toBe(''); // Confirm no failures from rendering
-      expect(numTimesEffectInit).toBe(strictMode && concurrentMode ? 3 : 2);
+      expect(numTimesEffectInit).toBe(strictMode ? 3 : 2);
     },
   );
 
@@ -512,7 +520,7 @@ describe('Atom Effects', () => {
 
       const c = renderElements(<Component />);
       expect(c.textContent).toBe(''); // Confirm no failures from rendering
-      expect(numTimesEffectInit).toBe(strictMode && concurrentMode ? 2 : 1);
+      expect(numTimesEffectInit).toBe(strictMode ? 2 : 1);
     },
   );
 

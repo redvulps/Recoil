@@ -128,9 +128,11 @@ testRecoil('useRecoilValueLoadable - loading loadable', async () => {
   }
   const c = renderElements(<ReadLoadable />);
   expect(c.textContent).toEqual('LOADING');
-  resolve('VALUE');
-  resolved = true;
-  act(() => jest.runAllTimers());
+  act(() => {
+    resolved = true;
+    resolve('VALUE');
+  });
+  await flushPromisesAndTimers();
   expect(c.textContent).toEqual('VALUE');
   await Promise.all(
     promises.map(async promise => {

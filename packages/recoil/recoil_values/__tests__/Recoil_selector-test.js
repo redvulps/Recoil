@@ -337,7 +337,7 @@ describe('Catching Deps', () => {
     expect(getValue(catchingSelector)).toEqual('CAUGHT');
   });
 
-  testRecoil('selector - catching loads', () => {
+  testRecoil('selector - catching loads', async () => {
     const loadingSel = resolvingAsyncSelector('READY');
     expect(getValue(loadingSel) instanceof Promise).toBe(true);
 
@@ -361,7 +361,7 @@ describe('Catching Deps', () => {
       },
     });
     expect(getValue(bypassSelector)).toBe('BYPASS');
-    act(() => jest.runAllTimers());
+    await flushPromisesAndTimers();
     expect(getValue(bypassSelector)).toEqual('READY');
   });
 });
@@ -411,13 +411,13 @@ describe('Dependencies', () => {
 
       expect(getValue(directSelector) instanceof Promise).toBe(true);
 
-      act(() => jest.runAllTimers());
+      await flushPromisesAndTimers();
       expect(getValue(directSelector)).toEqual(0);
 
       setValue(upstreamAtom, 1);
       expect(getValue(directSelector) instanceof Promise).toBe(true);
 
-      act(() => jest.runAllTimers());
+      await flushPromisesAndTimers();
       expect(getValue(directSelector)).toEqual(1);
     },
   );
@@ -778,8 +778,8 @@ describe('Async Selector Set', () => {
 
     await flushPromisesAndTimers();
     expect(setSnapshot.getLoadable(mySelector2).contents).toEqual('DEFAULT');
-    await expect(setAttempt).rejects.toThrowError();
-    await expect(resetAttempt).rejects.toThrowError();
+    await expect(setAttempt).rejects.toThrow();
+    await expect(resetAttempt).rejects.toThrow();
   });
 
   testRecoil('set tries to get async value', () => {

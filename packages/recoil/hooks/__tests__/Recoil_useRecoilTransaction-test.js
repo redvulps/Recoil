@@ -24,7 +24,7 @@ let React,
   useRecoilValue,
   useRecoilState,
   useRecoilTransaction,
-  useRecoilSnapshot,
+  useGetRecoilValueInfo,
   renderElements,
   flushPromisesAndTimers,
   ReadsAtom;
@@ -37,7 +37,7 @@ const testRecoil = getRecoilTestFn(() => {
     useRecoilValue,
     useRecoilState,
     useRecoilTransaction_UNSTABLE: useRecoilTransaction,
-    useRecoilSnapshot,
+    useGetRecoilValueInfo_UNSTABLE: useGetRecoilValueInfo,
   } = require('../../Recoil_index'));
   ({
     renderElements,
@@ -119,9 +119,13 @@ describe('Atoms', () => {
       default: 'DEFAULT',
     });
 
-    let snapshot;
+    let getInfo = _recoilValue => {
+      throw new Error('getInfo not set');
+    };
     let firstEffect = true;
     function Component() {
+      const getRecoilValueInfo = useGetRecoilValueInfo();
+      getInfo = recoilValue => ({...getRecoilValueInfo(recoilValue)});
       const [beforeValue, setBefore] = useState('INITIAL');
       const [beforeAtomValue, setBeforeAtom] = useRecoilState(beforeAtom);
       const duringAValue = useRecoilValue(duringAtomA);
@@ -136,7 +140,6 @@ describe('Atoms', () => {
         set(duringAtomA, 'DURING_A');
         set(duringAtomB, 'DURING_B');
       });
-      snapshot = useRecoilSnapshot();
 
       useEffect(() => {
         setTimeout(() => {
@@ -167,22 +170,29 @@ describe('Atoms', () => {
     expect(c.textContent).toBe(
       'INITIAL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,INITIAL',
     );
-    expect(
-      Array.from(snapshot?.getNodes_UNSTABLE({isModified: true}) ?? []),
-    ).toEqual([]);
+    expect(getInfo(beforeAtom).isModified).toBe(false);
+    expect(getInfo(duringAtomA).isModified).toBe(false);
+    expect(getInfo(duringAtomB).isModified).toBe(false);
+    expect(getInfo(afterAtom).isModified).toBe(false);
 
     await flushPromisesAndTimers();
     expect(c.textContent).toBe('BEFORE,BEFORE,DURING_A,DURING_B,AFTER,AFTER');
-    expect(
-      Array.from(snapshot?.getNodes_UNSTABLE({isModified: true}) ?? []).map(
-        ({key}) => key,
-      ),
-    ).toEqual([
-      'useRecoilTransaction dirty before',
-      'useRecoilTransaction dirty during A',
-      'useRecoilTransaction dirty during B',
-      'useRecoilTransaction dirty after',
-    ]);
+    expect(getInfo(beforeAtom)).toMatchObject({
+      isModified: true,
+      loadable: expect.objectContaining({contents: 'BEFORE'}),
+    });
+    expect(getInfo(duringAtomA)).toMatchObject({
+      isModified: true,
+      loadable: expect.objectContaining({contents: 'DURING_A'}),
+    });
+    expect(getInfo(duringAtomB)).toMatchObject({
+      isModified: true,
+      loadable: expect.objectContaining({contents: 'DURING_B'}),
+    });
+    expect(getInfo(afterAtom)).toMatchObject({
+      isModified: true,
+      loadable: expect.objectContaining({contents: 'AFTER'}),
+    });
   });
 });
 
@@ -249,7 +259,8 @@ describe('Atom Effects', () => {
       };
 
       renderElements(<Component />);
-      expect(numTimesEffectInit).toBe(strictMode && concurrentMode ? 2 : 1);
+      // React 19 StrictMode double-invokes effects regardless of concurrent mode.
+      expect(numTimesEffectInit).toBe(strictMode ? 2 : 1);
     },
   );
 
@@ -286,7 +297,8 @@ describe('Atom Effects', () => {
   testRecoil(
     'Atom effects are initialized once if first seen on transaction and then on root store',
     ({strictMode, concurrentMode}) => {
-      const sm = strictMode && concurrentMode ? 2 : 1;
+      // React 19 StrictMode double-invokes effects regardless of concurrent mode.
+      const sm = strictMode ? 2 : 1;
       let numTimesEffectInit = 0;
 
       const atomWithEffect = atom({
@@ -327,7 +339,8 @@ describe('Atom Effects', () => {
   testRecoil(
     'Atom effects are initialized once if first seen on root store and then on snapshot',
     ({strictMode, concurrentMode}) => {
-      const sm = strictMode && concurrentMode ? 2 : 1;
+      // React 19 StrictMode double-invokes effects regardless of concurrent mode.
+      const sm = strictMode ? 2 : 1;
       let numTimesEffectInit = 0;
 
       const atomWithEffect = atom({

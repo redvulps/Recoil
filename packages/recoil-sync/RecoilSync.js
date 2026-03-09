@@ -19,13 +19,13 @@ import type {Checker} from 'refine';
 const {
   DefaultValue,
   RecoilLoadable,
-  useRecoilSnapshot,
   useRecoilStoreID,
+  useRecoilTransactionObserver_UNSTABLE,
   useRecoilTransaction_UNSTABLE,
 } = require('Recoil');
 
 const React = require('react');
-const {useCallback, useEffect, useRef} = require('react');
+const {useCallback, useEffect} = require('react');
 const err = require('recoil-shared/util/Recoil_err');
 const lazyProxy = require('recoil-shared/util/Recoil_lazyProxy');
 
@@ -333,54 +333,62 @@ function useRecoilSync({
 }: RecoilSyncOptions): void {
   const recoilStoreID = useRecoilStoreID();
 
-  // Subscribe to Recoil state changes
-  const snapshot = useRecoilSnapshot();
-  const previousSnapshotRef = useRef(snapshot);
-  useEffect(() => {
-    if (write != null && snapshot !== previousSnapshotRef.current) {
-      previousSnapshotRef.current = snapshot;
-      const diff: ItemDiff = new Map();
-      const atomRegistry = registries.getAtomRegistry(recoilStoreID, storeKey);
-      const modifiedAtoms = snapshot.getNodes_UNSTABLE({isModified: true});
-      for (const atom of modifiedAtoms) {
-        const registration = atomRegistry.get(atom.key);
-        if (registration != null) {
-          const atomInfo = snapshot.getInfo_UNSTABLE(registration.atom);
-          // Avoid feedback loops:
-          // Don't write to storage updates that came from listening to storage
-          if (
-            (atomInfo.isSet &&
-              atomInfo.loadable?.contents !==
-                registration.pendingUpdate?.value) ||
-            (!atomInfo.isSet &&
-              !(registration.pendingUpdate?.value instanceof DefaultValue))
-          ) {
-            for (const [, {options}] of registration.effects) {
-              writeAtomItemsToDiff(
-                diff,
-                options,
-                read,
-                atomInfo.isSet || options.syncDefault === true
-                  ? atomInfo.loadable
-                  : null,
-              );
-            }
-          }
-          delete registration.pendingUpdate;
+  // Subscribe to Recoil state changes.  Observing transactions avoids
+  // retaining a live snapshot across React 19 re-renders.
+  useRecoilTransactionObserver_UNSTABLE(
+    useCallback(
+      ({snapshot}) => {
+        if (write == null) {
+          return;
         }
-      }
-      if (diff.size) {
-        write(
-          getWriteInterface(
-            recoilStoreID,
-            storeKey,
-            diff,
-            snapshot.getInfo_UNSTABLE,
-          ),
+
+        const diff: ItemDiff = new Map();
+        const atomRegistry = registries.getAtomRegistry(
+          recoilStoreID,
+          storeKey,
         );
-      }
-    }
-  }, [read, recoilStoreID, snapshot, storeKey, write]);
+        const modifiedAtoms = snapshot.getNodes_UNSTABLE({isModified: true});
+        for (const atom of modifiedAtoms) {
+          const registration = atomRegistry.get(atom.key);
+          if (registration != null) {
+            const atomInfo = snapshot.getInfo_UNSTABLE(registration.atom);
+            // Avoid feedback loops:
+            // Don't write to storage updates that came from listening to storage
+            if (
+              (atomInfo.isSet &&
+                atomInfo.loadable?.contents !==
+                  registration.pendingUpdate?.value) ||
+              (!atomInfo.isSet &&
+                !(registration.pendingUpdate?.value instanceof DefaultValue))
+            ) {
+              for (const [, {options}] of registration.effects) {
+                writeAtomItemsToDiff(
+                  diff,
+                  options,
+                  read,
+                  atomInfo.isSet || options.syncDefault === true
+                    ? atomInfo.loadable
+                    : null,
+                );
+              }
+            }
+            delete registration.pendingUpdate;
+          }
+        }
+        if (diff.size) {
+          write(
+            getWriteInterface(
+              recoilStoreID,
+              storeKey,
+              diff,
+              snapshot.getInfo_UNSTABLE,
+            ),
+          );
+        }
+      },
+      [read, recoilStoreID, storeKey, write],
+    ),
+  );
 
   const updateItems = useRecoilTransaction_UNSTABLE(
     ({set, reset}) =>
@@ -587,7 +595,7 @@ function syncEffect<T>(opt: SyncEffectOptions<T>): AtomEffect<T> {
       // Persist on Initial Read
       const writeToStorage = storage?.write;
       if (options.syncDefault === true && writeToStorage != null) {
-        window.setTimeout(() => {
+        const persistSyncDefault = () => {
           const loadable = getLoadable(node);
           if (loadable.state === 'hasValue') {
             const diff = writeAtomItemsToDiff(
@@ -599,8 +607,30 @@ function syncEffect<T>(opt: SyncEffectOptions<T>): AtomEffect<T> {
             writeToStorage(
               getWriteInterface(storeID, storeKey, diff, getInfo_UNSTABLE),
             );
+            return;
           }
-        }, 0);
+
+          if (loadable.state === 'loading') {
+            loadable
+              .toPromise()
+              .then(value => {
+                const diff = writeAtomItemsToDiff(
+                  new Map(),
+                  options,
+                  storage?.read,
+                  RecoilLoadable.of(value),
+                );
+                writeToStorage(
+                  getWriteInterface(storeID, storeKey, diff, getInfo_UNSTABLE),
+                );
+              })
+              .catch(() => {});
+          }
+        };
+
+        // Async defaults need to be written after they settle, not just on the
+        // first timeout tick after initialization.
+        window.setTimeout(persistSyncDefault, 0);
       }
     }
 

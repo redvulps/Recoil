@@ -125,13 +125,24 @@ type ReactAbstractElement<Props> = React.Element<
   React.AbstractComponent<Props>,
 >;
 
+// React 19: calling createRoot() on the same container multiple times triggers a
+// warning. Cache roots by container so repeated calls (e.g. from StrictMode
+// double-invoked effects) reuse the existing root instead of creating a new one.
+const _reactRoots: WeakMap<HTMLElement, $FlowFixMe> = new WeakMap();
+const _renderedContainers: Set<HTMLElement> = new Set();
+
 function renderLegacyReactRoot<Props>(
   container: HTMLElement,
   contents: ReactAbstractElement<Props>,
 ) {
   // Legacy ReactDOM.render was removed in React 19.
   // Use createRoot for all versions since we require React 18+.
-  const root = ReactDOMClient.createRoot(container);
+  let root = _reactRoots.get(container);
+  if (!root) {
+    root = ReactDOMClient.createRoot(container);
+    _reactRoots.set(container, root);
+  }
+  _renderedContainers.add(container);
   root.render(contents);
 }
 
@@ -153,7 +164,48 @@ function renderConcurrentReactRoot<Props>(
       'Concurrent rendering is not available with the current version of React.',
     );
   }
-  createRoot(container).render(contents);
+  let root = _reactRoots.get(container);
+  if (!root) {
+    root = createRoot(container);
+    _reactRoots.set(container, root);
+  }
+  _renderedContainers.add(container);
+  root.render(contents);
+}
+
+async function drainPendingTimers(maxPasses: number = 10): Promise<void> {
+  for (let pass = 0; pass < maxPasses; pass++) {
+    if (
+      typeof jest.getTimerCount === 'function' &&
+      jest.getTimerCount() === 0
+    ) {
+      return;
+    }
+
+    if (typeof jest.runOnlyPendingTimersAsync === 'function') {
+      await jest.runOnlyPendingTimersAsync();
+    } else {
+      jest.runOnlyPendingTimers();
+    }
+  }
+}
+
+async function cleanupRenderedRoots(): Promise<void> {
+  await act(async () => {
+    for (const container of _renderedContainers) {
+      const root = _reactRoots.get(container);
+      if (root != null) {
+        root.unmount();
+        _reactRoots.delete(container);
+      }
+    }
+    _renderedContainers.clear();
+    await drainPendingTimers();
+  });
+
+  if (typeof jest.clearAllTimers === 'function') {
+    jest.clearAllTimers();
+  }
 }
 
 function renderUnwrappedElements(
@@ -312,14 +364,11 @@ function componentThatReadsAndWritesAtom<T>(
 }
 
 function flushPromisesAndTimers(): Promise<void> {
-  // Wrap flush with act() to avoid warning that only shows up in OSS environment
-  return act(
-    () =>
-      new Promise(resolve => {
-        window.setTimeout(resolve, 100);
-        jest.runAllTimers();
-      }),
-  );
+  // Drain timers inside act() so Suspense wakeups and follow-up renders settle
+  // under modern fake timers.
+  return act(async () => {
+    await drainPendingTimers();
+  });
 }
 
 type ReloadImports = () => void | (() => void);
@@ -364,6 +413,7 @@ const testGKs =
           gksToTest,
         ]),
       ])('%s', async (_title, gksToTest) => {
+        await cleanupRenderedRoots();
         jest.resetModules();
         const gkx = require('recoil-shared/util/Recoil_gkx');
         gkx.clear(); // @oss-only
@@ -383,6 +433,7 @@ const testGKs =
         try {
           await assertionsFn({gks: gksToTest, strictMode, concurrentMode});
         } finally {
+          await cleanupRenderedRoots();
           global.IS_REACT_ACT_ENVIRONMENT = prevReactActEnvironment;
           gksToTest.forEach(gkx.setFail);
           after?.();

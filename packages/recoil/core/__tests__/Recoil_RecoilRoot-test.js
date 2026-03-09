@@ -143,11 +143,12 @@ describe('initializeState', () => {
       // Effects are run when initialized with initializeState, even if not read.
       // Effects are run twice, once before initializeState, then again when rendering.
       expect(container1.textContent).toEqual('NO READ');
-      expect(effectRan).toEqual(strictMode ? (concurrentMode ? 4 : 3) : 2);
+      // React 19: concurrent mode no longer adds extra invocations beyond StrictMode.
+      expect(effectRan).toEqual(strictMode ? 3 : 2);
 
       // Auto-release of the initializing snapshot
       await flushPromisesAndTimers();
-      expect(effectCleanup).toEqual(strictMode ? (concurrentMode ? 3 : 2) : 1);
+      expect(effectCleanup).toEqual(strictMode ? 2 : 1);
 
       // Test again when atom is actually used by the root
       effectRan = 0;
@@ -160,9 +161,10 @@ describe('initializeState', () => {
 
       // Effects takes precedence
       expect(container2.textContent).toEqual('"EFFECT"');
-      expect(effectRan).toEqual(strictMode ? (concurrentMode ? 4 : 3) : 2);
+      // React 19: concurrent mode no longer adds extra invocations beyond StrictMode.
+      expect(effectRan).toEqual(strictMode ? 3 : 2);
       await flushPromisesAndTimers();
-      expect(effectCleanup).toEqual(strictMode ? (concurrentMode ? 3 : 2) : 1);
+      expect(effectCleanup).toEqual(strictMode ? 2 : 1);
     },
   );
 

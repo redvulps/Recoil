@@ -23,6 +23,7 @@ let React,
   selectorFamily,
   asyncSelector,
   componentThatReadsAndWritesAtom,
+  flushPromisesAndTimers,
   renderElements;
 
 const testRecoil = getRecoilTestFn(() => {
@@ -36,6 +37,7 @@ const testRecoil = getRecoilTestFn(() => {
   ({
     asyncSelector,
     componentThatReadsAndWritesAtom,
+    flushPromisesAndTimers,
     renderElements,
   } = require('recoil-shared/__test_utils__/Recoil_TestingUtils'));
 });
@@ -77,7 +79,7 @@ testRecoil('useResetRecoilState - sync selector default', () => {
 });
 
 // Test resetting an atom to a fallback selector with a pending async value
-testRecoil('useResetRecoilState - async selector default', () => {
+testRecoil('useResetRecoilState - async selector default', async () => {
   const [mySelector, resolve] = asyncSelector<string, _>();
   const myAtom = atom({
     key: 'useResetRecoilState/async_selector',
@@ -89,12 +91,12 @@ testRecoil('useResetRecoilState - async selector default', () => {
   const container = renderElements(<Component />);
   expect(container.textContent).toBe('loading');
   act(() => setValue('set value'));
-  act(() => jest.runAllTimers()); // Hmm, interesting this is required
+  await flushPromisesAndTimers();
   expect(container.textContent).toBe('"set value"');
   act(() => resetValue());
   expect(container.textContent).toBe('loading');
   act(() => resolve('resolved fallback'));
-  act(() => jest.runAllTimers());
+  await flushPromisesAndTimers();
   expect(container.textContent).toBe('"resolved fallback"');
 });
 

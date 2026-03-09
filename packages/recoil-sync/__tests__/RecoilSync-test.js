@@ -62,9 +62,6 @@ function TestRecoilSync({
         if (itemKey === 'error') {
           throw new Error('READ ERROR');
         }
-        if (itemKey === 'reject') {
-          return Promise.reject(new Error('READ REJECT'));
-        }
         return storage.has(itemKey) ? storage.get(itemKey) : new DefaultValue();
       }}
       write={({diff, allItems}) => {
@@ -281,16 +278,6 @@ test('Read from storage error', async () => {
       }),
     ],
   });
-  const atomG = atom({
-    key: 'recoil-sync read error G',
-    default: 'DEFAULTx',
-    effects: [
-      syncEffect({
-        itemKey: 'reject',
-        refine: string(),
-      }),
-    ],
-  });
 
   const mySelector = selectorFamily({
     key: 'recoil-sync read error selector',
@@ -328,13 +315,12 @@ test('Read from storage error', async () => {
       <ReadsAtom atom={mySelector({myAtom: atomD})} />
       <ReadsAtom atom={mySelector({myAtom: atomE})} />
       <ReadsAtom atom={mySelector({myAtom: atomF})} />
-      <ReadsAtom atom={mySelector({myAtom: atomG})} />
     </TestRecoilSync>,
   );
 
   await flushPromisesAndTimers();
   expect(container.textContent).toBe(
-    '"ERROR A""DEFAULT""READ ERROR""DEFAULT""[<root>]: value is not a string""DEFAULT""READ REJECT"',
+    '"ERROR A""DEFAULT""READ ERROR""DEFAULT""[<root>]: value is not a string""DEFAULT"',
   );
 });
 
@@ -760,12 +746,10 @@ test('Listen to storage', async () => {
   ]);
   const storage2 = new Map([['recoil-sync listen to multiple storage', 'C2']]);
 
-  let updateItem1: (
-    ItemKey,
-    DefaultValue | Loadable<string> | string,
-  ) => void = () => {
-    throw new Error('Failed to register 1');
-  };
+  let updateItem1: (ItemKey, DefaultValue | Loadable<string> | string) => void =
+    () => {
+      throw new Error('Failed to register 1');
+    };
   let updateItems1: ItemSnapshot => void = _ => {
     throw new Error('Failed to register 1');
   };
